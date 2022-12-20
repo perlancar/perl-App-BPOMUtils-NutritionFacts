@@ -152,7 +152,7 @@ sub bpom_show_nutrition_facts {
             push @rows, [{colspan=>5, text=>''}];
             push @rows, [{colspan=>5, align=>'left', $attr => $code_fmttext->("*JUMLAH PER KEMASAN ($args{package_size} g)*")}];
         } elsif ($output_format =~ /linear/) {
-            push @rows, $code_fmttext->(" *JUMLAH PER KEMASAN ($args{package_size} g)* ");
+            push @rows, $code_fmttext->(" *JUMLAH PER KEMASAN ($args{package_size} g)* : ");
         }
     } else {
         if ($output_format =~ /vertical/) {
@@ -166,7 +166,7 @@ sub bpom_show_nutrition_facts {
             push @rows, [{colspan=>5, text=>''}];
         } elsif ($output_format =~ /linear/) {
             push @rows, $code_fmttext->("Takaran saji : " . _fmt_num_id($args{serving_size}) . " g, " .
-                                        _fmt_num_id(_nearest(0.5, $args{package_size} / $args{serving_size}))." Sajian per Kemasan *JUMLAH PER SAJIAN* ");
+                                        _fmt_num_id(_nearest(0.5, $args{package_size} / $args{serving_size}))." Sajian per Kemasan *JUMLAH PER SAJIAN* : ");
         }
     }
 
