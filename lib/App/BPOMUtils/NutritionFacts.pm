@@ -49,6 +49,7 @@ $SPEC{bpom_show_nutrition_facts} = {
                                            raw_table
                                            vertical_html_table vertical_text_table
                                            linear_html linear_text
+                                           calculation_html calculation_text
                                        /]}],
             # horizontal_html_table horizontal_text_table formats not supported yet
             default => 'vertical_text_table',
@@ -109,7 +110,6 @@ sub bpom_show_nutrition_facts {
 
     my @rows;
 
-
     my $attr = $output_format =~ /html/ ? "raw_html" : "text";
     my $code_fmttext = sub {
         my $text = shift;
@@ -145,6 +145,8 @@ sub bpom_show_nutrition_facts {
         } else {
             push @rows, $code_fmttext->("*INFORMASI NILAI GIZI*  ");
         }
+    } elsif ($output_format =~ /calculation/) {
+        push @rows, [{colspan=>2, align=>'middle', $attr => $code_fmttext->("*PERHITUNGAN INFORMASI NILAI GIZI*")}];
     }
 
     if ($per_package_ing) {
@@ -191,7 +193,8 @@ sub bpom_show_nutrition_facts {
         my $val0 = $args{fat} * 9 + $args{protein} * 4 + $args{carbohydrate} * 4;
         my $val  = $val0*$args{$size_key}/100;
         my $valr = $code_round_energy->($val);
-        my $pct_dv_R = _nearest(1, $val/2150*100);
+        my $pct_dv = $val/2150*100;
+        my $pct_dv_R = _nearest(1, $pct_dv);
         if ($output_format eq 'raw_table') {
             push @rows, {
                 name_eng => 'Total energy',
@@ -201,7 +204,7 @@ sub bpom_show_nutrition_facts {
                  val_per_srv_R => $valr) x ($per_package_ing ? 0:1),
                 (val_per_pkg   => $val,
                  val_per_pkg_R => $valr) x $per_package_ing,
-                pct_dv        => $val/2150*100,
+                pct_dv        => $pct_dv,
                 pct_dv_R      => $pct_dv_R,
             };
         } elsif ($output_format =~ /vertical/) {
@@ -216,6 +219,20 @@ sub bpom_show_nutrition_facts {
             } else {
                 push @rows, $code_fmttext->("*Energi total $valr kkal*, ");
             }
+        } elsif ($output_format =~ /calculation/) {
+            push @rows, [{colspan=>2, align=>'middle', $attr=>$code_fmttext->('*Energi total*')}];
+            push @rows, [{align=>'right', text=>'Energi total per 100 g'},
+                         {align=>'left', $attr=>"= lemak x 9 + protein x 4 + karbohidrat x 4 = $args{fat} x 9 + $args{protein} x 4 + $args{carbohydrate} x 4 = $val0 kkal"}];
+            push @rows, [{align=>'right', text=>"Energi total per ".($per_package_ing ? "kemasan $args{package_size} g" : "takaran saji $args{serving_size}")},
+                         {align=>'left', $attr=>"= $val0 x $args{$size_key} / 100 = $val kkal"}];
+            push @rows, [{align=>'right', text=>"(dibulatkan: <5 -> 0, <=50 -> 5 kkal terdekat, >50 -> 10 kkal terdekat)"},
+                         {align=>'left', $attr=>$code_fmttext->("= *$valr* kkal")}];
+            push @rows, ['', ''];
+            push @rows, [{colspan=>2, align=>'middle', $attr=>$code_fmttext->('*%AKG energi total*')}];
+            push @rows, [{align=>'right', text=>"\%AKG"},
+                         {align=>'left', $attr=>"= $val / 2150 x 100 = $pct_dv"}];
+            push @rows, [{align=>'right', text=>"(dibulatkan ke % terdekat)"},
+                         {align=>'left', $attr=>$code_fmttext->("= *$pct_dv_R*")}];
         }
 
       ENERGY_FROM_FAT: {
@@ -239,6 +256,14 @@ sub bpom_show_nutrition_facts {
                 }
             } elsif ($output_format =~ /linear/) {
                 push @rows, $code_fmttext->("Energi dari lemak $valr kkal, ");
+            } elsif ($output_format =~ /calculation/) {
+                push @rows, [{colspan=>2, align=>'middle', $attr=>$code_fmttext->('*Energi dari lemak*')}];
+                push @rows, [{align=>'right', text=>'Energi dari lemak per 100 g'},
+                             {align=>'left', $attr=>"= lemak x 9 = $args{fat} x 9 = $val0 kkal"}];
+                push @rows, [{align=>'right', text=>"Energi dari lemak per ".($per_package_ing ? "kemasan $args{package_size} g" : "takaran saji $args{serving_size}")},
+                             {align=>'left', $attr=>"= $val0 x $args{$size_key} / 100 = $val kkal"}];
+                push @rows, [{align=>'right', text=>"(dibulatkan: <5 -> 0, <=50 -> 5 kkal terdekat, >50 -> 10 kkal terdekat)"},
+                             {align=>'left', $attr=>$code_fmttext->("= *$valr* kkal")}];
             }
         }
 
@@ -263,6 +288,14 @@ sub bpom_show_nutrition_facts {
                 }
             } elsif ($output_format =~ /linear/) {
                 push @rows, $code_fmttext->("Energi dari lemak jenuh $valr kkal, ");
+            } elsif ($output_format =~ /calculation/) {
+                push @rows, [{colspan=>2, align=>'middle', $attr=>$code_fmttext->('*Energi dari lemak jenuh*')}];
+                push @rows, [{align=>'right', text=>'Energi dari lemak per 100 g'},
+                             {align=>'left', $attr=>"= lemak jenuh x 9 = $args{saturated_fat} x 9 = $val0 kkal"}];
+                push @rows, [{align=>'right', text=>"Energi dari lemak jenuh per ".($per_package_ing ? "kemasan $args{package_size} g" : "takaran saji $args{serving_size}")},
+                             {align=>'left', $attr=>"= $val0 x $args{$size_key} / 100 = $val kkal"}];
+                push @rows, [{align=>'right', text=>"(dibulatkan: <5 -> 0, <=50 -> 5 kkal terdekat, >50 -> 10 kkal terdekat)"},
+                             {align=>'left', $attr=>$code_fmttext->("= *$valr* kkal")}];
             }
         }
     } # ENERGY
@@ -281,15 +314,16 @@ sub bpom_show_nutrition_facts {
             else               { _nearest(1  , $val) }
         };
         my $code_round_fat_pct_dv = sub {
-            my ($val, $fat_valr) = @_;
-            if ($fat_valr == 0) { 0 }
-            else                { _nearest(1  , $val) }
+            my ($val, $valr) = @_;
+            if ($valr == 0)    { 0 }
+            else               { _nearest(1  , $val) }
         };
 
         my $val0 = $args{fat};
         my $val  = $val0*$args{$size_key}/100;
         my $valr = $code_round_fat->($val);
-        my $pct_dv_R = $code_round_fat_pct_dv->($val/67*100, $valr);
+        my $pct_dv = $val/67*100;
+        my $pct_dv_R = $code_round_fat_pct_dv->($pct_dv, $valr);
         if ($output_format eq 'raw_table') {
             push @rows, {
                 name_eng => 'Total fat',
@@ -299,20 +333,35 @@ sub bpom_show_nutrition_facts {
                  val_per_srv_R => $valr) x ($per_package_ing ? 0:1),
                 (val_per_pkg   => $val,
                  val_per_pkg_R => $valr) x $per_package_ing,
-                pct_dv   => $val/67*100,
+                pct_dv   => $pct_dv,
                 pct_dv_R => $pct_dv_R,
             };
         } elsif ($output_format =~ /vertical/) {
             push @rows, [{colspan=>2, $attr=>$code_fmttext->("*Lemak total*")}, {align=>'right', $attr=>$code_fmttext->("*$valr g*")}, {align=>'right', $attr=>"$pct_dv_R %"}, ''];
         } elsif ($output_format =~ /linear/) {
             push @rows, $code_fmttext->("*Lemak total $valr g ($pct_dv_R% AKG)*, ");
+        } elsif ($output_format =~ /calculation/) {
+            push @rows, [{colspan=>2, align=>'middle', $attr=>$code_fmttext->('*Lemak total*')}];
+            push @rows, [{align=>'right', text=>'Lemak total per 100 g'},
+                         {align=>'left', $attr=>"= $args{fat} g"}];
+            push @rows, [{align=>'right', text=>"Lemak total per ".($per_package_ing ? "kemasan $args{package_size} g" : "takaran saji $args{serving_size}")},
+                         {align=>'left', $attr=>"= $val0 x $args{$size_key} / 100 = $val g"}];
+            push @rows, [{align=>'right', text=>"(dibulatkan: <0.5 -> 0, <=5 -> 0.5 g terdekat, >=5 -> 1 g terdekat)"},
+                         {align=>'left', $attr=>$code_fmttext->("= *$valr* g")}];
+            push @rows, ['', ''];
+            push @rows, [{colspan=>2, align=>'middle', $attr=>$code_fmttext->('*%AKG lemak total*')}];
+            push @rows, [{align=>'right', text=>"\%AKG"},
+                         {align=>'left', $attr=>"= $val / 67 x 100 = $pct_dv"}];
+            push @rows, [{align=>'right', text=>"(dibulatkan ke % terdekat)"},
+                         {align=>'left', $attr=>$code_fmttext->("= *$pct_dv_R*")}];
         }
 
       SATURATED_FAT: {
             my $val0 = $args{saturated_fat};
             my $val  = $val0*$args{$size_key}/100;
             my $valr = $code_round_fat->($val);
-            my $pct_dv_R = $code_round_fat_pct_dv->($val/20*100, $valr);
+            my $pct_dv = $val/20*100;
+            my $pct_dv_R = $code_round_fat_pct_dv->($pct_dv, $valr);
             if ($output_format eq 'raw_table') {
                 push @rows, {
                     name_eng => 'Saturated fat',
@@ -322,15 +371,28 @@ sub bpom_show_nutrition_facts {
                      val_per_srv_R => $valr) x ($per_package_ing ? 0:1),
                     (val_per_pkg   => $val,
                      val_per_pkg_R => $valr) x $per_package_ing,
-                    pct_dv   => $val/20*100,
+                    pct_dv   => $pct_dv,
                     pct_dv_R => $pct_dv_R,
                 };
             } elsif ($output_format =~ /vertical/) {
                 push @rows, [{colspan=>2, $attr=>$code_fmttext->("*Lemak jenuh*")}, {align=>'right', $attr=>$code_fmttext->("*$valr g*")}, {align=>'right', $attr=>"$pct_dv_R %"}, ''];
             } elsif ($output_format =~ /linear/) {
-            push @rows, $code_fmttext->("*Lemak jenuh $valr g ($pct_dv_R% AKG)*, ");
+                push @rows, $code_fmttext->("*Lemak jenuh $valr g ($pct_dv_R% AKG)*, ");
+            } elsif ($output_format =~ /calculation/) {
+                push @rows, [{colspan=>2, align=>'middle', $attr=>$code_fmttext->('*Lemak jenuh*')}];
+                push @rows, [{align=>'right', text=>'Lemak jenuh per 100 g'},
+                             {align=>'left', $attr=>"= $args{saturated_fat} g"}];
+                push @rows, [{align=>'right', text=>"Lemak jenuh per ".($per_package_ing ? "kemasan $args{package_size} g" : "takaran saji $args{serving_size}")},
+                             {align=>'left', $attr=>"= $val0 x $args{$size_key} / 100 = $val g"}];
+                push @rows, [{align=>'right', text=>"(dibulatkan: <0.5 -> 0, <=5 -> 0.5 g terdekat, >=5 -> 1 g terdekat)"},
+                             {align=>'left', $attr=>$code_fmttext->("= *$valr* g")}];
+                push @rows, ['', ''];
+                push @rows, [{colspan=>2, align=>'middle', $attr=>$code_fmttext->('*%AKG lemak jenuh*')}];
+                push @rows, [{align=>'right', text=>"\%AKG"},
+                             {align=>'left', $attr=>"= $val / 67 x 100 = $pct_dv"}];
+                push @rows, [{align=>'right', text=>"(dibulatkan ke % terdekat)"},
+                             {align=>'left', $attr=>$code_fmttext->("= *$pct_dv_R*")}];
             }
-        }
     } # FAT
 
   PROTEIN: {
@@ -340,15 +402,16 @@ sub bpom_show_nutrition_facts {
             else               { _nearest(1  , $val) }
         };
         my $code_round_protein_pct_dv = sub {
-            my ($val, $fat_valr) = @_;
-            if ($fat_valr == 0) { 0 }
-            else                { _nearest(1  , $val) }
+            my ($val, $valr) = @_;
+            if   ($valr == 0)  { 0 }
+            else               { _nearest(1  , $val) }
         };
 
         my $val0 = $args{protein};
         my $val  = $val0*$args{$size_key}/100;
         my $valr = $code_round_protein->($val);
-        my $pct_dv_R = $code_round_protein_pct_dv->($val/60*100, $valr);
+        my $pct_dv = $val/60*100;
+        my $pct_dv_R = $code_round_protein_pct_dv->($pct_dv, $valr);
         if ($output_format eq 'raw_table') {
             push @rows, {
                 name_eng => 'Protein',
@@ -358,13 +421,27 @@ sub bpom_show_nutrition_facts {
                  val_per_srv_R => $valr) x ($per_package_ing ? 0:1),
                 (val_per_pkg   => $val,
                  val_per_pkg_R => $valr) x $per_package_ing,
-                pct_dv   => $val/60*100,
+                pct_dv   => $pct_dv,
                 pct_dv_R => $pct_dv_R,
             };
         } elsif ($output_format =~ /vertical/) {
             push @rows, [{colspan=>2, $attr=>$code_fmttext->("*Protein*")}, {align=>'right', $attr=>$code_fmttext->("*$valr g*")}, {align=>'right', $attr=>"$pct_dv_R %"}, ''];
         } elsif ($output_format =~ /linear/) {
             push @rows, $code_fmttext->("*Protein $valr g ($pct_dv_R% AKG)*, ");
+        } elsif ($output_format =~ /calculation/) {
+            push @rows, [{colspan=>2, align=>'middle', $attr=>$code_fmttext->('*Protein*')}];
+            push @rows, [{align=>'right', text=>'Protein per 100 g'},
+                         {align=>'left', $attr=>"= $args{protein} g"}];
+            push @rows, [{align=>'right', text=>"Protein total per ".($per_package_ing ? "kemasan $args{package_size} g" : "takaran saji $args{serving_size}")},
+                         {align=>'left', $attr=>"= $val0 x $args{$size_key} / 100 = $val g"}];
+            push @rows, [{align=>'right', text=>"(dibulatkan: <0.5 -> 0, >=0.5 -> 1 g terdekat)"},
+                         {align=>'left', $attr=>$code_fmttext->("= *$valr* g")}];
+            push @rows, ['', ''];
+            push @rows, [{colspan=>2, align=>'middle', $attr=>$code_fmttext->('*%AKG protein*')}];
+            push @rows, [{align=>'right', text=>"\%AKG"},
+                         {align=>'left', $attr=>"= $val / 60 x 100 = $pct_dv"}];
+            push @rows, [{align=>'right', text=>"(dibulatkan ke % terdekat)"},
+                         {align=>'left', $attr=>$code_fmttext->("= *$pct_dv_R*")}];
         }
     }
 
@@ -375,9 +452,9 @@ sub bpom_show_nutrition_facts {
             else               { _nearest(1  , $val) }
         };
         my $code_round_carbohydrate_pct_dv = sub {
-            my ($val, $fat_valr) = @_;
-            if ($fat_valr == 0) { 0 }
-            else                { _nearest(1  , $val) }
+            my ($val, $valr) = @_;
+            if ($valr == 0)    { 0 }
+            else               { _nearest(1  , $val) }
         };
 
         my $val0 = $args{carbohydrate};
@@ -400,6 +477,20 @@ sub bpom_show_nutrition_facts {
             push @rows, [{colspan=>2, $attr=>$code_fmttext->("*Karbohidrat total*")}, {align=>'right', $attr=>$code_fmttext->("*$valr g*")}, {align=>'right', $attr=>"$pct_dv_R %"}, ''];
         } elsif ($output_format =~ /linear/) {
             push @rows, $code_fmttext->("*Karbohidrat total $valr g ($pct_dv_R% AKG)*, ");
+        } elsif ($output_format =~ /calculation/) {
+            push @rows, [{colspan=>2, align=>'middle', $attr=>$code_fmttext->('*Karbohidrat total*')}];
+            push @rows, [{align=>'right', text=>'Karbohidrat total per 100 g'},
+                         {align=>'left', $attr=>"= $args{carbohydrate} g"}];
+            push @rows, [{align=>'right', text=>"Karbohidrat total per ".($per_package_ing ? "kemasan $args{package_size} g" : "takaran saji $args{serving_size}")},
+                         {align=>'left', $attr=>"= $val0 x $args{$size_key} / 100 = $val g"}];
+            push @rows, [{align=>'right', text=>"(dibulatkan: <0.5 -> 0, >=0.5 -> 1 g terdekat)"},
+                         {align=>'left', $attr=>$code_fmttext->("= *$valr* g")}];
+            push @rows, ['', ''];
+            push @rows, [{colspan=>2, align=>'middle', $attr=>$code_fmttext->('*%AKG karbohidrat total*')}];
+            push @rows, [{align=>'right', text=>"\%AKG"},
+                         {align=>'left', $attr=>"= $val / 325 x 100 = $pct_dv"}];
+            push @rows, [{align=>'right', text=>"(dibulatkan ke % terdekat)"},
+                         {align=>'left', $attr=>$code_fmttext->("= *$pct_dv_R*")}];
         }
     }
 
@@ -427,6 +518,14 @@ sub bpom_show_nutrition_facts {
             push @rows, [{colspan=>2, $attr=>$code_fmttext->("*Gula*")}, {align=>'right', $attr=>$code_fmttext->("*$valr g*")}, '', ''];
         } elsif ($output_format =~ /linear/) {
             push @rows, $code_fmttext->("*Gula $valr g*, ");
+        } elsif ($output_format =~ /calculation/) {
+            push @rows, [{colspan=>2, align=>'middle', $attr=>$code_fmttext->('*Gula*')}];
+            push @rows, [{align=>'right', text=>'Gula per 100 g'},
+                         {align=>'left', $attr=>"= $args{sugar} g"}];
+            push @rows, [{align=>'right', text=>"Gula per ".($per_package_ing ? "kemasan $args{package_size} g" : "takaran saji $args{serving_size}")},
+                         {align=>'left', $attr=>"= $val0 x $args{$size_key} / 100 = $val g"}];
+            push @rows, [{align=>'right', text=>"(dibulatkan: <0.5 -> 0, >=0.5 -> 1 g terdekat)"},
+                         {align=>'left', $attr=>$code_fmttext->("= *$valr* g")}];
         }
     }
 
@@ -446,7 +545,8 @@ sub bpom_show_nutrition_facts {
         my $val0 = $args{sodium};
         my $val  = $val0*$args{$size_key}/100;
         my $valr = $code_round_sodium->($val);
-        my $pct_dv_R = $code_round_sodium_pct_dv->($val/325*100, $valr);
+        my $pct_dv = $val/1500*100;
+        my $pct_dv_R = $code_round_sodium_pct_dv->($val/1500*100, $valr);
         if ($output_format eq 'raw_table') {
             push @rows, {
                 name_eng => 'Salt (Sodium)',
@@ -463,6 +563,21 @@ sub bpom_show_nutrition_facts {
             push @rows, [{bottom_border=>1, colspan=>2, $attr=>$code_fmttext->("*Garam (Natrium)*")}, {align=>'right', $attr=>$code_fmttext->("*$valr mg*")}, {align=>'right', $attr=>"$pct_dv_R %"}, ''];
         } elsif ($output_format =~ /linear/) {
             push @rows, $code_fmttext->("*Garam (Natrium) $valr mg ($pct_dv_R% AKG)*. ");
+        } elsif ($output_format =~ /calculation/) {
+            push @rows, [{colspan=>2, align=>'middle', $attr=>$code_fmttext->('*Natrium*')}];
+            push @rows, [{align=>'right', text=>'Natrium per 100 g'},
+                         {align=>'left', $attr=>"= $args{sodium} mg"}];
+            push @rows, [{align=>'right', text=>"Natrium per ".($per_package_ing ? "kemasan $args{package_size} g" : "takaran saji $args{serving_size}")},
+                         {align=>'left', $attr=>"= $val0 x $args{$size_key} / 100 = $val mg"}];
+            push @rows, [{align=>'right', text=>"(dibulatkan: <5 -> 0, <=140 -> 5 mg terdekat, >140 -> 10 mg terdekat)"},
+                         {align=>'left', $attr=>$code_fmttext->("= *$valr* mg")}];
+            push @rows, ['', ''];
+            push @rows, [{colspan=>2, align=>'middle', $attr=>$code_fmttext->('*%AKG natrium*')}];
+            push @rows, [{align=>'right', text=>"\%AKG"},
+                         {align=>'left', $attr=>"= $val / 1500 x 100 = $pct_dv"}];
+            push @rows, [{align=>'right', text=>"(dibulatkan ke % terdekat)"},
+                         {align=>'left', $attr=>$code_fmttext->("= *$pct_dv_R*")}];
+        }
         }
     }
 
@@ -504,6 +619,20 @@ sub bpom_show_nutrition_facts {
 <p>" . join("", @rows). "</p>\n";
         } else {
             $text = join("", @rows). "\n";
+        }
+    } elsif ($output_format =~ /calculation/) {
+        if ($output_format =~ /html/) {
+            require Text::Table::HTML;
+            my $table = Text::Table::HTML::table(rows => \@rows, header_row=>0);
+            $text = "
+<style>
+  table { border-collapse: collapse; border: 1px solid; }
+  tr.has_bottom_border { border-bottom: 1pt solid black; }
+  // td:first-child { background: red; }
+</style>\n" . $table;
+        } else {
+            require Text::Table::More;
+            $text = Text::Table::More::generate_table(rows => \@rows, color=>1, header_row=>0);
         }
     }
 
