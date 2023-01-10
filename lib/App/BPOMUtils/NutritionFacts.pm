@@ -47,7 +47,7 @@ my @output_formats = (qw/
 
 $SPEC{bpom_show_nutrition_facts} = {
     v => 1.1,
-    summary => 'Round values and format them as nutrition fact table (ING - informasi nilai gizi)',
+    summary => 'Render nutrition fact table (ING - informasi nilai gizi) in various formats',
     args => {
         name => {schema=>'str*'},
 
