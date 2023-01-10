@@ -632,7 +632,7 @@ sub bpom_show_nutrition_facts {
             $table =~ s!<table>!<table class="$output_format">!;
             $text = "
 <style>
-  table.$output_format { border-collapse: collapse; border: 1px solid; }
+  table.$output_format { font-size: smaller; border-collapse: collapse; border: 1px solid; }
   tr.$output_format.has_bottom_border { border-bottom: 1pt solid black; }
   // td:first-child { background: red; }
 </style>\n" . $table;
