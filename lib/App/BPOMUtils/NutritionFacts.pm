@@ -91,7 +91,7 @@ $SPEC{bpom_show_nutrition_facts} = {
             test => 0,
         },
         {
-            summary => 'The same example in vetical HTML table format',
+            summary => 'The same example in vertical HTML table format',
             args => {fat=>0.223, saturated_fat=>0.010, protein=>0.990, carbohydrate=>13.113, sugar=>7.173, sodium=>0.223, serving_size=>175, package_size=>20, output_format=>"vertical_html_table"},
             test => 0,
         },
