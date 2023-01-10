@@ -599,11 +599,11 @@ sub bpom_show_nutrition_facts {
         if ($output_format =~ /html/) {
             require Text::Table::HTML;
             my $table = Text::Table::HTML::table(rows => \@rows, header_row=>0);
-            $table =~ s!<table>!<table><colgroup><col style="width:16pt;"><col style="width:200pt;"><col style="width:48pt;"><col style="width:48pt;"><col style="width:36pt;"></colgroup>!;
+            $table =~ s!<table>!<table class="$output_format"><colgroup><col style="width:16pt;"><col style="width:200pt;"><col style="width:48pt;"><col style="width:48pt;"><col style="width:36pt;"></colgroup>!;
             $text = "
 <style>
-  table { border-collapse: collapse; border: 1px solid; }
-  tr.has_bottom_border { border-bottom: 1pt solid black; }
+  table.$output_format { border-collapse: collapse; border: 1px solid; }
+  tr.$output_format.has_bottom_border { border-bottom: 1pt solid black; }
   // td:first-child { background: red; }
 </style>\n" . $table;
         } else {
@@ -624,10 +624,11 @@ sub bpom_show_nutrition_facts {
         if ($output_format =~ /html/) {
             require Text::Table::HTML;
             my $table = Text::Table::HTML::table(rows => \@rows, header_row=>0);
+            $table =~ s!<table>!<table class="$output_format">!;
             $text = "
 <style>
-  table { border-collapse: collapse; border: 1px solid; }
-  tr.has_bottom_border { border-bottom: 1pt solid black; }
+  table.$output_format { border-collapse: collapse; border: 1px solid; }
+  tr.$output_format.has_bottom_border { border-bottom: 1pt solid black; }
   // td:first-child { background: red; }
 </style>\n" . $table;
         } else {
