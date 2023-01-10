@@ -190,15 +190,6 @@ sub bpom_show_nutrition_facts {
             else               { _nearest(10, $val) }
         };
 
-        if ($per_package_ing) {
-            if ($output_format eq 'raw_table') {
-            } elsif ($output_format =~ /vertical/) {
-                push @rows, [{colspan=>5, $attr=>$code_fmttext->("*JUMLAH PER KEMASAN ("._fmt_num_id($args{package_size})." g*)")}];
-            } elsif ($output_format =~ /linear/) {
-                push @rows, $code_fmttext->("*JUMLAH PER KEMASAN ("._fmt_num_id($args{package_size})." g*) : ");
-            }
-        }
-
         my $val0 = $args{fat} * 9 + $args{protein} * 4 + $args{carbohydrate} * 4;
         my $val  = $val0*$args{$size_key}/100;
         my $valr = $code_round_energy->($val);
