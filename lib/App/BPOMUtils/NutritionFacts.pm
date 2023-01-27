@@ -607,8 +607,8 @@ sub bpom_show_nutrition_facts {
             $table =~ s!<table>!<table class="$output_format"><colgroup><col style="width:16pt;"><col style="width:200pt;"><col style="width:48pt;"><col style="width:48pt;"><col style="width:36pt;"></colgroup>!;
             $text = "
 <style>
-  table.$output_format { border-collapse: collapse; border: 1px solid; }
-  table.$output_format tr.has_bottom_border { border-bottom: 1pt solid black; }
+  table.$output_format { border-collapse: collapse; border: solid 1pt black; }
+  table.$output_format tr.has_bottom_border { border-bottom: solid 1pt black; }
 </style>\n" . $table;
         } else {
             require Text::Table::More;
@@ -618,7 +618,7 @@ sub bpom_show_nutrition_facts {
         if ($output_format =~ /html/) {
             $text = "
 <style>
-  p.$output_format { border-style: solid; }
+  p.$output_format { border: solid 1pt black; }
 </style>
 <p class=\"$output_format\">" . join("", @rows). "</p>\n";
         } else {
@@ -631,8 +631,8 @@ sub bpom_show_nutrition_facts {
             $table =~ s!<table>!<table class="$output_format">!;
             $text = "
 <style>
-  table.$output_format { font-size: smaller; border-collapse: collapse; border: 1px solid; }
-  table.$output_format tr.has_bottom_border { border-bottom: 1pt solid black; }
+  table.$output_format { font-size: smaller; border-collapse: collapse; border: solid 1pt black; }
+  table.$output_format tr.has_bottom_border { border-bottom: solid 1pt black; }
 </style>\n" . $table;
         } else {
             require Text::Table::More;
