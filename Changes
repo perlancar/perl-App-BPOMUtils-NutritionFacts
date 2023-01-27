@@ -1,3 +1,11 @@
+0.020   2023-01-27  Released-By: PERLANCAR; Urgency: medium
+
+        - More CSS tweak.
+
+        - [format calculation_html, calculation_text] Use Unicode multiplication
+          sign instead of "x".
+
+
 0.019   2023-01-27  Released-By: PERLANCAR; Urgency: medium
 
         - [bugfix] Fix CSS selector.
