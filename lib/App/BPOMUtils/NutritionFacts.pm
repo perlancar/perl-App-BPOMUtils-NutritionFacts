@@ -608,8 +608,7 @@ sub bpom_show_nutrition_facts {
             $text = "
 <style>
   table.$output_format { border-collapse: collapse; border: 1px solid; }
-  tr.$output_format.has_bottom_border { border-bottom: 1pt solid black; }
-  // td:first-child { background: red; }
+  table.$output_format tr.has_bottom_border { border-bottom: 1pt solid black; }
 </style>\n" . $table;
         } else {
             require Text::Table::More;
@@ -633,8 +632,7 @@ sub bpom_show_nutrition_facts {
             $text = "
 <style>
   table.$output_format { font-size: smaller; border-collapse: collapse; border: 1px solid; }
-  tr.$output_format.has_bottom_border { border-bottom: 1pt solid black; }
-  // td:first-child { background: red; }
+  table.$output_format tr.has_bottom_border { border-bottom: 1pt solid black; }
 </style>\n" . $table;
         } else {
             require Text::Table::More;
