@@ -618,9 +618,9 @@ sub bpom_show_nutrition_facts {
         if ($output_format =~ /html/) {
             $text = "
 <style>
-  p { border-style: solid; }
+  p.$output_format { border-style: solid; }
 </style>
-<p>" . join("", @rows). "</p>\n";
+<p class=\"$output_format\">" . join("", @rows). "</p>\n";
         } else {
             $text = join("", @rows). "\n";
         }
