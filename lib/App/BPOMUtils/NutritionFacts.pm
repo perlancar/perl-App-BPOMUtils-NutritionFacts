@@ -42,7 +42,7 @@ sub _fmt_num_id {
 my @output_formats = (qw/
                                            raw_table
                                            vertical_html_table vertical_text_table
-                                           linear_html linear_text
+                                           linear_html linear_text raw_linear
                                            calculation_html calculation_text
 /);
 # horizontal_html_table horizontal_text_table formats not supported yet
@@ -53,9 +53,16 @@ $SPEC{bpom_show_nutrition_facts} = {
     args => {
         name => {schema=>'str*'},
 
-        # XXX output_format: vertical table, horizontal table, simple table, csv. currently only simple table is supported
         output_format => {
+            summary => 'Pick an output format for the nutrition fact',
             schema => ['str*', {in=>\@output_formats}],
+            description => <<'_',
+
+`vertical_text_table` is the default. The /(vertical)?.*table/ formats presents
+the information in a table, while the /linear/ formats presents the information
+in a paragraph.
+
+_
             default => 'vertical_text_table',
             cmdline_aliases => {
                 f=>{},
@@ -89,6 +96,11 @@ $SPEC{bpom_show_nutrition_facts} = {
     examples => [
         {
             summary => 'An example, in linear text format (color/emphasis is shown with markup)',
+            args => {fat=>0.223, saturated_fat=>0.010, protein=>0.990, carbohydrate=>13.113, sugar=>7.173, sodium=>0.223, serving_size=>175, package_size=>20, output_format=>"linear_text", color=>"never"},
+            test => 0,
+        },
+        {
+            summary => 'An example, in raw_linear format (just like linear_text but with no border)',
             args => {fat=>0.223, saturated_fat=>0.010, protein=>0.990, carbohydrate=>13.113, sugar=>7.173, sodium=>0.223, serving_size=>175, package_size=>20, output_format=>"linear_text", color=>"never"},
             test => 0,
         },
@@ -623,12 +635,14 @@ sub bpom_show_nutrition_facts {
   p.$output_format { border: solid 1pt black; }
 </style>
 <p class=\"$output_format\">" . join("", @rows). "</p>\n";
-        } else {
-            # linear_text
+        } elsif ($output_format =~ /text/) {
             require Text::ANSI::Util;
             require Text::Table::More;
             my $ing = Text::ANSI::Util::ta_wrap(join("", @rows), $ENV{COLUMNS} // 80);
             $text = Text::Table::More::generate_table(rows => [[$ing]], header_row=>0);
+        } else {
+            # raw_linear
+            $text = join("", @rows) . "\n";
         }
     } elsif ($output_format =~ /calculation/) {
         if ($output_format =~ /html/) {
