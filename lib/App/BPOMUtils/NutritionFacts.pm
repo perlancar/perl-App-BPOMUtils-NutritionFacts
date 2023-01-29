@@ -624,7 +624,11 @@ sub bpom_show_nutrition_facts {
 </style>
 <p class=\"$output_format\">" . join("", @rows). "</p>\n";
         } else {
-            $text = join("", @rows). "\n";
+            # linear_text
+            require Text::ANSI::Util;
+            require Text::Table::More;
+            my $ing = Text::ANSI::Util::ta_wrap(join("", @rows), $ENV{COLUMNS} // 80);
+            $text = Text::Table::More::generate_table(rows => [[$ing]], header_row=>0);
         }
     } elsif ($output_format =~ /calculation/) {
         if ($output_format =~ /html/) {
