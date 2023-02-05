@@ -695,6 +695,6 @@ This distribution includes CLI utilities related to BPOM nutrition facts.
 
 L<https://pom.go.id>
 
-L<App::BPOMUtils>
+Other C<App::BPOMUtils::*> distributions.
 
 =cut
