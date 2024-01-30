@@ -131,6 +131,7 @@ sub bpom_show_nutrition_facts {
     my $use_color = $color eq 'never' ? 0 : $color eq 'always' ? 1 : $is_interactive;
 
     my @rows;
+    my $funcraw = {};
 
     my $attr = $output_format =~ /html/ ? "raw_html" : "text";
     my $code_fmttext = sub {
@@ -159,6 +160,8 @@ sub bpom_show_nutrition_facts {
     my $size_key = $per_package_ing ? 'package_size' : 'serving_size';
     my $BR = $output_format =~ /html/ ? "<br />" : "\n";
 
+    $funcraw->{per_package_ing} = $per_package_ing;
+
     if ($output_format =~ /vertical/) {
         push @rows, [{colspan=>5, align=>'middle', $attr => $code_fmttext->("*INFORMASI NILAI GIZI*")}];
     } elsif ($output_format =~ /linear/) {
@@ -179,24 +182,26 @@ sub bpom_show_nutrition_facts {
             push @rows, $code_fmttext->(" *JUMLAH PER KEMASAN ($args{package_size} g)* : ");
         }
     } else {
+        my $srvs_per_pkg = _nearest(0.5, $args{package_size} / $args{serving_size});
+        $funcraw->{srvs_per_pkg} = $srvs_per_pkg;
         if ($output_format =~ /vertical/) {
             push @rows, [{colspan=>5, text=>''}];
             push @rows, [{colspan=>5, align=>'left', bottom_border=>1,
                           $attr =>
                           $code_fmttext->("Takaran saji "._fmt_num_id($args{serving_size})." g"). $BR .
-                          $code_fmttext->(_fmt_num_id(_nearest(0.5, $args{package_size} / $args{serving_size}))." Sajian per Kemasan")
+                          $code_fmttext->(_fmt_num_id($srvs_per_pkg)." Sajian per Kemasan")
                       }];
             push @rows, [{colspan=>5, align=>'left', $attr => $code_fmttext->("*JUMLAH PER SAJIAN*")}];
             push @rows, [{colspan=>5, text=>''}];
         } elsif ($output_format =~ /linear/) {
             push @rows, $code_fmttext->("Takaran saji : " . _fmt_num_id($args{serving_size}) . " g, " .
-                                        _fmt_num_id(_nearest(0.5, $args{package_size} / $args{serving_size}))." Sajian per Kemasan *JUMLAH PER SAJIAN* : ");
+                                        _fmt_num_id($srvs_per_pkg)." Sajian per Kemasan *JUMLAH PER SAJIAN* : ");
         } elsif ($output_format =~ /calculation/) {
             push @rows, [{colspan=>2, align=>'middle', $attr=>$code_fmttext->('*Sajian per kemasan*')}];
             push @rows, [{align=>'right', text=>'Sajian per kemasan'},
                          {align=>'left', $attr=>"= $args{package_size} / $args{serving_size} = ".($args{package_size}/$args{serving_size})}];
             push @rows, [{align=>'right', text=>"(dibulatkan 0,5 terdekat)"},
-                         {align=>'left', $attr=>$code_fmttext->("= *"._nearest(0.5, $args{package_size} / $args{serving_size})."*")}];
+                         {align=>'left', $attr=>$code_fmttext->("= *".$srvs_per_pkg."*")}];
         }
     }
 
@@ -214,6 +219,12 @@ sub bpom_show_nutrition_facts {
         my $valr = $code_round_energy->($val);
         my $pct_dv = $val/2150*100;
         my $pct_dv_R = _nearest(1, $pct_dv);
+        $funcraw->{total_energy_per_srv} = $val          if !$per_package_ing;
+        $funcraw->{total_energy_per_srv_rounded} = $valr if !$per_package_ing;
+        $funcraw->{total_energy_per_pkg} = $val          if  $per_package_ing;
+        $funcraw->{total_energy_per_pkg_rounded} = $valr if  $per_package_ing;
+        $funcraw->{total_energy_pct_dv} = $pct_dv;
+        $funcraw->{total_energy_pct_dv_rounded} = $pct_dv_R;
         if ($output_format eq 'raw_table') {
             push @rows, {
                 name_eng => 'Total energy',
@@ -258,6 +269,10 @@ sub bpom_show_nutrition_facts {
             my $val0 = $args{fat} * 9;
             my $val  = $val0*$args{serving_size}/100;
             my $valr = $code_round_energy->($val);
+            $funcraw->{energy_from_fat_per_srv} = $val          if !$per_package_ing;
+            $funcraw->{energy_from_fat_per_srv_rounded} = $valr if !$per_package_ing;
+            $funcraw->{energy_from_fat_per_pkg} = $val          if  $per_package_ing;
+            $funcraw->{energy_from_fat_per_pkg_rounded} = $valr if  $per_package_ing;
             if ($output_format eq 'raw_table') {
                 push @rows, {
                     name_eng => 'Energy from fat',
@@ -290,6 +305,10 @@ sub bpom_show_nutrition_facts {
             my $val0 = $args{saturated_fat} * 9;
             my $val  = $val0*$args{$size_key}/100;
             my $valr = $code_round_energy->($val);
+            $funcraw->{energy_from_saturated_fat_per_srv} = $val          if !$per_package_ing;
+            $funcraw->{energy_from_saturated_fat_per_srv_rounded} = $valr if !$per_package_ing;
+            $funcraw->{energy_from_saturated_fat_per_pkg} = $val          if  $per_package_ing;
+            $funcraw->{energy_from_saturated_fat_per_pkg_rounded} = $valr if  $per_package_ing;
             if ($output_format eq 'raw_table') {
                 push @rows, {
                     name_eng => 'Energy from saturated fat',
@@ -343,6 +362,10 @@ sub bpom_show_nutrition_facts {
         my $valr = $code_round_fat->($val);
         my $pct_dv = $val/67*100;
         my $pct_dv_R = $code_round_fat_pct_dv->($pct_dv, $valr);
+        $funcraw->{total_fat_per_srv} = $val          if !$per_package_ing;
+        $funcraw->{total_fat_per_srv_rounded} = $valr if !$per_package_ing;
+        $funcraw->{total_fat_per_pkg} = $val          if  $per_package_ing;
+        $funcraw->{total_fat_per_pkg_rounded} = $valr if  $per_package_ing;
         if ($output_format eq 'raw_table') {
             push @rows, {
                 name_eng => 'Total fat',
@@ -381,6 +404,10 @@ sub bpom_show_nutrition_facts {
             my $valr = $code_round_fat->($val);
             my $pct_dv = $val/20*100;
             my $pct_dv_R = $code_round_fat_pct_dv->($pct_dv, $valr);
+            $funcraw->{saturated_fat_per_srv} = $val          if !$per_package_ing;
+            $funcraw->{saturated_fat_per_srv_rounded} = $valr if !$per_package_ing;
+            $funcraw->{saturated_fat_per_pkg} = $val          if  $per_package_ing;
+            $funcraw->{saturated_fat_per_pkg_rounded} = $valr if  $per_package_ing;
             if ($output_format eq 'raw_table') {
                 push @rows, {
                     name_eng => 'Saturated fat',
@@ -431,6 +458,10 @@ sub bpom_show_nutrition_facts {
         my $valr = $code_round_protein->($val);
         my $pct_dv = $val/60*100;
         my $pct_dv_R = $code_round_protein_pct_dv->($pct_dv, $valr);
+        $funcraw->{protein_per_srv} = $val          if !$per_package_ing;
+        $funcraw->{protein_per_srv_rounded} = $valr if !$per_package_ing;
+        $funcraw->{protein_per_pkg} = $val          if  $per_package_ing;
+        $funcraw->{protein_per_pkg_rounded} = $valr if  $per_package_ing;
         if ($output_format eq 'raw_table') {
             push @rows, {
                 name_eng => 'Protein',
@@ -480,6 +511,10 @@ sub bpom_show_nutrition_facts {
         my $val  = $val0*$args{$size_key}/100;
         my $valr = $code_round_carbohydrate->($val);
         my $pct_dv_R = $code_round_carbohydrate_pct_dv->($val/325*100, $valr);
+        $funcraw->{carbohydrate_per_srv} = $val          if !$per_package_ing;
+        $funcraw->{carbohydrate_per_srv_rounded} = $valr if !$per_package_ing;
+        $funcraw->{carbohydrate_per_pkg} = $val          if  $per_package_ing;
+        $funcraw->{carbohydrate_per_pkg_rounded} = $valr if  $per_package_ing;
         if ($output_format eq 'raw_table') {
             push @rows, {
                 name_eng => 'Total carbohydrate',
@@ -523,6 +558,10 @@ sub bpom_show_nutrition_facts {
         my $val0 = $args{sugar};
         my $val  = $val0*$args{$size_key}/100;
         my $valr = $code_round_sugar->($val);
+        $funcraw->{total_sugar_per_srv} = $val          if !$per_package_ing;
+        $funcraw->{total_sugar_per_srv_rounded} = $valr if !$per_package_ing;
+        $funcraw->{total_sugar_per_pkg} = $val          if  $per_package_ing;
+        $funcraw->{total_sugar_per_pkg_rounded} = $valr if  $per_package_ing;
         if ($output_format eq 'raw_table') {
             push @rows, {
                 name_eng => 'Total sugar',
@@ -566,6 +605,10 @@ sub bpom_show_nutrition_facts {
         my $valr = $code_round_sodium->($val);
         my $pct_dv = $val/1500*100;
         my $pct_dv_R = $code_round_sodium_pct_dv->($val/1500*100, $valr);
+        $funcraw->{sodium_per_srv} = $val          if !$per_package_ing;
+        $funcraw->{sodium_per_srv_rounded} = $valr if !$per_package_ing;
+        $funcraw->{sodium_per_pkg} = $val          if  $per_package_ing;
+        $funcraw->{sodium_per_pkg_rounded} = $valr if  $per_package_ing;
         if ($output_format eq 'raw_table') {
             push @rows, {
                 name_eng => 'Salt (Sodium)',
@@ -675,7 +718,7 @@ sub bpom_show_nutrition_facts {
         return [200];
     }
 
-    return [200, "OK", $text, {'cmdline.skip_format'=>1}];
+    return [200, "OK", $text, {'func.raw' => $funcraw, 'cmdline.skip_format'=>1}];
 }
 
 1;
