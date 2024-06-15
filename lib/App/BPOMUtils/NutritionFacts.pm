@@ -84,6 +84,7 @@ _
 
         fat           => {summary => 'Total fat, in g/100g'           , schema => 'ufloat*', req=>1},
         saturated_fat => {summary => 'Saturated fat, in g/100g'       , schema => 'ufloat*', req=>1},
+        cholesterol   => {summary => 'Cholesterol, in mg/100g'        , schema => 'ufloat*'},
         protein       => {summary => 'Protein, in g/100g'             , schema => 'ufloat*', req=>1},
         carbohydrate  => {summary => 'Total carbohydrate, in g/100g'  , schema => 'ufloat*', req=>1},
         sugar         => {summary => 'Total sugar, in g/100g'         , schema => 'ufloat*', req=>1},
@@ -440,6 +441,62 @@ sub bpom_show_nutrition_facts {
                              {align=>'left', $attr=>$code_fmttext->("= *$pct_dv_R*")}];
             }
     } # FAT
+
+  CHOLESTEROL: {
+        my $code_round_cholesterol = sub {
+            my $val = shift;
+            if ($val <  2)    { 0 }
+            if ($val <= 5)    { _nearest(1  , $val) }
+            else              { _nearest(5  , $val) }
+        };
+        my $code_round_cholesterol_pct_dv = sub {
+            my ($val, $valr) = @_;
+            if   ($valr == 0)  { 0 }
+            else               { _nearest(1  , $val) }
+        };
+
+        my $val0 = $args{cholesterol};
+        last unless defined $val0;
+        my $val  = $val0*$args{$size_key}/100;
+        my $valr = $code_round_cholesterol->($val);
+        my $pct_dv = $val/300*100;
+        my $pct_dv_R = $code_round_cholesterol_pct_dv->($pct_dv, $valr);
+        $funcraw->{cholesterol_per_srv} = $val          if !$per_package_ing;
+        $funcraw->{cholesterol_per_srv_rounded} = $valr if !$per_package_ing;
+        $funcraw->{cholesterol_per_pkg} = $val          if  $per_package_ing;
+        $funcraw->{cholesterol_per_pkg_rounded} = $valr if  $per_package_ing;
+        if ($output_format eq 'raw_table') {
+            push @rows, {
+                name_eng => 'Cholesterol',
+                name_ind => 'Kolesterol',
+                val_per_100g  => $val0,
+                (val_per_srv   => $val,
+                 val_per_srv_R => $valr) x ($per_package_ing ? 0:1),
+                (val_per_pkg   => $val,
+                 val_per_pkg_R => $valr) x $per_package_ing,
+                pct_dv   => $pct_dv,
+                pct_dv_R => $pct_dv_R,
+            };
+        } elsif ($output_format =~ /vertical/) {
+            push @rows, [{colspan=>2, $attr=>$code_fmttext->("Kolesterol")}, {align=>'right', $attr=>$code_fmttext->("$valr mg")}, {align=>'right', $attr=>"$pct_dv_R %"}, ''];
+        } elsif ($output_format =~ /linear/) {
+            push @rows, $code_fmttext->("Kolesterol $valr mg ($pct_dv_R% AKG), ");
+        } elsif ($output_format =~ /calculation/) {
+            push @rows, [{colspan=>2, align=>'middle', $attr=>$code_fmttext->('*Kolesterol*')}];
+            push @rows, [{align=>'right', text=>'Kolesterol per 100 g'},
+                         {align=>'left', $attr=>"= $args{cholesterol} mg"}];
+            push @rows, [{align=>'right', text=>"Kolesterol total per ".($per_package_ing ? "kemasan $args{package_size} g" : "takaran saji $args{serving_size} g")},
+                         {align=>'left', $attr=>"= $val0 $M $args{$size_key} / 100 = $val mg"}];
+            push @rows, [{align=>'right', text=>"(dibulatkan: <2 -> 0, 2-5 -> 1 mg terdekat, >5 -> 5 mg terdekat)"},
+                         {align=>'left', $attr=>$code_fmttext->("= *$valr* mg")}];
+            push @rows, ['', ''];
+            push @rows, [{colspan=>2, align=>'middle', $attr=>$code_fmttext->('*%AKG kolesterol*')}];
+            push @rows, [{align=>'right', text=>"\%AKG"},
+                         {align=>'left', $attr=>"= $val / 300 $M 100 = $pct_dv"}];
+            push @rows, [{align=>'right', text=>"(dibulatkan ke % terdekat)"},
+                         {align=>'left', $attr=>$code_fmttext->("= *$pct_dv_R*")}];
+        }
+    }
 
   PROTEIN: {
         my $code_round_protein = sub {
