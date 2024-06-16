@@ -89,6 +89,7 @@ _
         carbohydrate  => {summary => 'Total carbohydrate, in g/100g'  , schema => 'ufloat*', req=>1},
         sugar         => {summary => 'Total sugar, in g/100g'         , schema => 'ufloat*', req=>1},
         sodium        => {summary => 'Sodium, in mg/100g'             , schema => 'ufloat*', req=>1, cmdline_aliases=>{salt=>{}}},
+        va            => {summary => 'Vitamin A, in mcg/100g (all-trans-)retinol', schema => 'ufloat*'},
 
         serving_size  => {summary => 'Serving size, in g'             , schema => 'ufloat*', req=>1},
         package_size  => {summary => 'Packaging size, in g'           , schema => 'ufloat*', req=>1},
@@ -324,7 +325,7 @@ sub bpom_show_nutrition_facts {
                 if ($per_package_ing) {
                 } else {
                     push @rows, [{bottom_border=>1, text=>''}, {colspan=>2, $attr=>$code_fmttext->("Energi dari lemak jenuh")}, {colspan=>2, align=>'right', $attr=>$code_fmttext->("$valr kkal")}];
-                }
+                 }
             } elsif ($output_format =~ /linear/) {
                 push @rows, $code_fmttext->("Energi dari lemak jenuh $valr kkal, ");
             } elsif ($output_format =~ /calculation/) {
@@ -697,8 +698,83 @@ sub bpom_show_nutrition_facts {
             push @rows, [{align=>'right', text=>"(dibulatkan ke % terdekat)"},
                          {align=>'left', $attr=>$code_fmttext->("= *$pct_dv_R*")}];
         }
-        }
     }
+    }
+
+  VITAMIN_MINERAL_NONNUTRIENTS: {
+
+        my @rows_vm;
+      VITAMIN_MINERAL: {
+            my $code_round_vitamin_mineral_pct_dv = sub {
+                my ($val, $valr) = @_;
+                if   ($val <= 10)  { _nearest(2, $val) }
+                else               { _nearest(5, $val) }
+            };
+
+          VITAMIN_A: {
+                my $val0 = $args{va};
+                my $val  = $val0*$args{$size_key}/100;
+                my $pct_dv = $val/600 *100;
+                my $pct_dv_R = $code_round_vitamin_mineral_pct_dv->($pct_dv, $pct_dv);
+                $funcraw->{va_pct_dv_per_srv} = $pct_dv           if !$per_package_ing;
+                $funcraw->{va_pct_dv_per_srv_rounded} = $pct_dv_R if !$per_package_ing;
+                $funcraw->{va_pct_dv_per_pkg} = $pct_dv           if  $per_package_ing;
+                $funcraw->{va_pct_dv_per_pkg_rounded} = $pct_dv_R if  $per_package_ing;
+                if ($output_format eq 'raw_table') {
+                    push @rows_vm, {
+                        name_eng => 'Vitamin A',
+                        name_ind => 'Vitamin A',
+                        val_per_100g  => $val0,
+                        (val_per_srv   => $val) x (!$per_package_ing ? 1:0),
+                        (val_per_pkg   => $val) x ( $per_package_ing ? 1:0),
+                        pct_dv   => $pct_dv,
+                        pct_dv_R => $pct_dv_R,
+                    };
+                } elsif ($output_format =~ /vertical/) {
+                    push @rows_vm, [{}, {colspan=>2, $attr=>$code_fmttext->("Vitamin A")}, {colspan=>2, align=>'right', $attr=>$code_fmttext->("$pct_dv_R %")}];
+                } elsif ($output_format =~ /linear/) {
+                    push @rows_vm, $code_fmttext->("Vitamin A ($pct_dv_R% AKG)");
+                } elsif ($output_format =~ /calculation/) {
+                    push @rows_vm, [{colspan=>2, align=>'middle', $attr=>$code_fmttext->('*Vitamin A*')}];
+                    push @rows_vm, [{align=>'right', text=>'Vitamin A 100 g'},
+                                     {align=>'left', $attr=>"= $args{va} mcg all-trans retinol"}];
+                    push @rows_vm, [{align=>'right', text=>"Vitamin A total per ".($per_package_ing ? "kemasan $args{package_size} g" : "takaran saji $args{serving_size} g")},
+                                     {align=>'left', $attr=>"= $val0 $M $args{$size_key} / 100 = $val g"}];
+                    push @rows_vm, ['', ''];
+                    push @rows_vm, [{colspan=>2, align=>'middle', $attr=>$code_fmttext->('*%AKG Vitamin A*')}];
+                    push @rows_vm, [{align=>'right', text=>"\%AKG"},
+                                    {align=>'left', $attr=>"= $val / 600 $M 100 = $pct_dv"}];
+                    push @rows_vm, [{align=>'right', text=>"(dibulatkan [<=10% AKG -> 2% terdekat, >10% AKG -> 5% terdekat])"},
+                                    {align=>'left', $attr=>$code_fmttext->("= *$pct_dv_R*")}];
+                }
+            } # VITAMIN_A
+
+        } # VITAMIN_MINERAL
+
+        my @rows_nn;
+      NONNUTRIENTS: {
+            1;
+        } # NONNUTRIENTS
+
+        # add heading & border
+        if (@rows_vm) {
+            if ($output_format =~ /vertical/) {
+                push @rows, [{colspan=>5, $attr=>$code_fmttext->("Vitamin dan mineral")}];
+                unless (@rows_nn) {
+                    for (@{ $rows_vm[-1] }) { $_->{bottom_border} = 1 }
+                }
+            }
+        }
+        if (@rows_nn) {
+            if ($output_format =~ /vertical/) {
+                push @rows, [{colspan=>5, $attr=>$code_fmttext->("Zat Nongizi")}];
+                for (@{ $rows_nn[-1] }) { $_->{bottom_border} = 1 }
+            }
+        }
+
+        push @rows, @rows_vm, @rows_nn;
+
+    } # VITAMIN_MINERAL_NONNUTRIENTS
 
     if ($output_format eq 'raw_table') {
     } elsif ($output_format =~ /vertical/) {
