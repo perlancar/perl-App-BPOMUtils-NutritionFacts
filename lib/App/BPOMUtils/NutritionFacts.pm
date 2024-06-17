@@ -781,8 +781,8 @@ sub bpom_show_nutrition_facts {
             }; # do_vm
 
             $do_vm->("Vitamin A", $args{va}, 600, "mcg (all-trans-)retinol") if $args{va};
-            $do_vm->("Vitamin D", $args{va}, 15, "mcg") if $args{vd};
-            $do_vm->("Vitamin E", $args{va}, 15, "mg alpha-TE (tocopherol-equivalent)") if $args{ve};
+            $do_vm->("Vitamin D", $args{vd}, 15, "mcg") if $args{vd};
+            $do_vm->("Vitamin E", $args{ve}, 15, "mg alpha-TE (tocopherol-equivalent)") if $args{ve};
             $do_vm->("Vitamin K", $args{vk}, 60, "mcg") if $args{vk};
             $do_vm->("Vitamin B1", $args{vb1}, 1.4, "mg") if $args{vb1};
             $do_vm->("Vitamin B2", $args{vb2}, 1.6, "mg") if $args{vb2};
@@ -830,7 +830,7 @@ sub bpom_show_nutrition_facts {
         }
 
         if ($output_format =~ /linear/) {
-            push @rows, join(", ", @rows_vm, @rows_nn);
+            push @rows, join(", ", @rows_vm, @rows_nn), (@rows_vm || @rows_nn ? ". " : "");
         } else {
             push @rows, @rows_vm, @rows_nn;
         }
