@@ -110,7 +110,11 @@ _
         mn            => {summary => 'Manganese, in mcg/100g', schema => 'ufloat*'},
         cu            => {summary => 'Copper, in mcg/100g', schema => 'ufloat*'},
         cr            => {summary => 'Chromium, in mcg/100g', schema => 'ufloat*'},
-        fe            => {summary => 'Iron, in mg/100g', schema => 'ufloat*'},
+
+        fe             => {summary => 'Iron, in mg/100g', schema => 'ufloat*'},
+        fe_theoretical => {summary => 'Iron, in mg/100g (theoretical value to be used instead of lab result)', schema  => 'ufloat*'},
+        fe_theoretical_note => {schema => 'str*'},
+
         iodium        => {summary => 'Iodium, in mcg/100g', schema => 'ufloat*'},
         zn            => {summary => 'Zinc, in mg/100g', schema => 'ufloat*'},
         se            => {summary => 'Selenium, in mcg/100g', schema => 'ufloat*'},
@@ -737,7 +741,8 @@ sub bpom_show_nutrition_facts {
             };
 
             my $do_vm = sub {
-                my ($name_ind, $val0, $akg, $unit, $name_eng) = @_;
+                my ($name_ind, $val0, $val0_theoretical, $theoritical_note,
+                    $akg, $unit, $name_eng) = @_;
 
                 $name_eng //= $name_ind;
                 my $val  = $val0*$args{$size_key}/100;
@@ -780,32 +785,84 @@ sub bpom_show_nutrition_facts {
                 }
             }; # do_vm
 
-            $do_vm->("Vitamin A", $args{va}, 600, "mcg (all-trans-)retinol") if $args{va};
-            $do_vm->("Vitamin D", $args{vd}, 15, "mcg") if $args{vd};
-            $do_vm->("Vitamin E", $args{ve}, 15, "mg alpha-TE (tocopherol-equivalent)") if $args{ve};
-            $do_vm->("Vitamin K", $args{vk}, 60, "mcg") if $args{vk};
-            $do_vm->("Vitamin B1", $args{vb1}, 1.4, "mg") if $args{vb1};
-            $do_vm->("Vitamin B2", $args{vb2}, 1.6, "mg") if $args{vb2};
-            $do_vm->("Vitamin B3", $args{vb3}, 15, "mg") if $args{vb3};
-            $do_vm->("Vitamin B5", $args{vb5}, 5, "mg") if $args{vb5};
-            $do_vm->("Vitamin B6", $args{vb6}, 1.3, "mg") if $args{vb6};
-            $do_vm->("Folat", $args{folate}, 400, "mcg", "Folate") if $args{folate};
-            $do_vm->("Vitamin B12", $args{vb12}, 2.4, "mcg") if $args{vb12};
-            $do_vm->("Biotin", $args{biotin}, 30, "mcg") if $args{biotin};
-            $do_vm->("Kolin", $args{choline}, 450, "mg", "Choline") if $args{choline};
-            $do_vm->("Vitamin C", $args{vc}, 90, "mg") if $args{vc};
-            $do_vm->("Kalsium", $args{ca}, 1100, "mg", "Calcium") if $args{ca};
-            $do_vm->("Fosfor", $args{phosphorus}, 700, "mg", "Phosphorus") if $args{phosphorus};
-            $do_vm->("Magnesium", $args{mg}, 350, "mg") if $args{mg};
-            $do_vm->("Kalium", $args{potassium}, 4700, "mg", "Potassium") if $args{potassium};
-            $do_vm->("Mangan", $args{mn}, 2000, "mcg", "Manganese") if $args{mn};
-            $do_vm->("Tembaga", $args{cu}, 800, "mcg", "Copper") if $args{cu};
-            $do_vm->("Kromium", $args{cr}, 26, "mcg", "Chromium") if $args{cr};
-            $do_vm->("Besi", $args{fe}, 22, "mg", "Iron") if $args{fe};
-            $do_vm->("Iodium", $args{iodium}, 90, "mcg", "Iodium") if $args{iodium};
-            $do_vm->("Seng", $args{zn}, 13, "mg", "Zinc") if $args{zn};
-            $do_vm->("Selenium", $args{se}, 30, "mcg") if $args{se};
-            $do_vm->("Fluor", $args{fluorine}, 2.5, "mg", "Fluorine") if $args{fluorine};
+            $do_vm->("Vitamin A", $args{va}, $args{va_theoretical}, $args{va_theoretical_note},
+                     600, "mcg (all-trans-)retinol") if $args{va};
+
+            $do_vm->("Vitamin D", $args{vd}, $args{vd_theoretical}, $args{vd_theoretical_note},
+                     15, "mcg") if $args{vd};
+
+            $do_vm->("Vitamin E", $args{ve}, $args{ve_theoretical}, $args{ve_theoretical_note},
+                     15, "mg alpha-TE (tocopherol-equivalent)") if $args{ve};
+
+            $do_vm->("Vitamin K", $args{vk}, $args{vk_theoretical}, $args{vk_theoretical_note},
+                     60, "mcg") if $args{vk};
+
+            $do_vm->("Vitamin B1", $args{vb1}, $args{vb1_theoretical}, $args{vb1_theoretical_note},
+                     1.4, "mg") if $args{vb1};
+
+            $do_vm->("Vitamin B2", $args{vb2}, $args{vb2_theoretical}, $args{vb2_theoretical_note},
+                     1.6, "mg") if $args{vb2};
+
+            $do_vm->("Vitamin B3", $args{vb3}, $args{vb3_theoretical}, $args{vb3_theoretical_note},
+                     15, "mg") if $args{vb3};
+
+            $do_vm->("Vitamin B5", $args{vb5}, $args{vb5_theoretical}, $args{vb5_theoretical_note},
+                     5, "mg") if $args{vb5};
+
+            $do_vm->("Vitamin B6", $args{vb6}, $args{vb6_theoretical}, $args{vb6_theoretical_note},
+                     1.3, "mg") if $args{vb6};
+
+            $do_vm->("Folat", $args{folate}, $args{folate_theoretical}, $args{folate_theoretical_note},
+                     400, "mcg", "Folate") if $args{folate};
+
+            $do_vm->("Vitamin B12", $args{vb12}, $args{vb12_theoretical}, $args{vb12_theoretical_note},
+                     2.4, "mcg") if $args{vb12};
+
+            $do_vm->("Biotin", $args{biotin}, $args{biotin_theoretical}, $args{biotin_theoretical_note},
+                     30, "mcg") if $args{biotin};
+
+            $do_vm->("Kolin", $args{choline}, $args{choline_theoretical}, $args{choline_theoretical_note},
+                     450, "mg", "Choline") if $args{choline};
+
+            $do_vm->("Vitamin C", $args{vc}, $args{vc_theoretical}, $args{vc_theoretical_note},
+                     90, "mg") if $args{vc};
+
+            $do_vm->("Kalsium", $args{ca}, $args{ca_theoretical}, $args{ca_theoretical_note},
+                     1100, "mg", "Calcium") if $args{ca};
+
+            $do_vm->("Fosfor", $args{phosphorus}, $args{phosphorus_theoretical}, $args{phosphorus_theoretical_note},
+                     700, "mg", "Phosphorus") if $args{phosphorus};
+
+            $do_vm->("Magnesium", $args{mg}, $args{mg_theoretical}, $args{mg_theoretical_note},
+                     350, "mg") if $args{mg};
+
+            $do_vm->("Kalium", $args{potassium}, $args{potassium_theoretical}, $args{potassium_theoretical_note},
+                     4700, "mg", "Potassium") if $args{potassium};
+
+            $do_vm->("Mangan", $args{mn}, $args{mn_theoretical}, $args{mn_theoretical_note},
+                     2000, "mcg", "Manganese") if $args{mn};
+
+            $do_vm->("Tembaga", $args{cu}, $args{cu_theoretical}, $args{cu_theoretical_note},
+                     800, "mcg", "Copper") if $args{cu};
+
+            $do_vm->("Kromium", $args{cr}, $args{cr_theoretical}, $args{cr_theoretical_note},
+                     26, "mcg", "Chromium") if $args{cr};
+
+            $do_vm->("Besi", $args{fe}, $args{fe_theoretical}, $args{fe_theoretical_note},
+                     22, "mg", "Iron") if $args{fe};
+
+            $do_vm->("Iodium", $args{iodium}, $args{iodium_theoretical}, $args{iodium_theoretical_note},
+                     90, "mcg", "Iodium") if $args{iodium};
+
+            $do_vm->("Seng", $args{zn}, $args{zn_theoretical}, $args{zn_theoretical_note},
+                     13, "mg", "Zinc") if $args{zn};
+
+            $do_vm->("Selenium", $args{se}, $args{se_theoretical}, $args{se_theoretical_note},
+                     30, "mcg") if $args{se};
+
+            $do_vm->("Fluor", $args{fluorine}, $args{fluorine_theoretical}, $args{fluorine_theoretical_note},
+                     2.5, "mg", "Fluorine") if $args{fluorine};
+
         } # VITAMIN_MINERAL
 
         my @rows_nn;
