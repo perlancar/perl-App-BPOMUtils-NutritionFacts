@@ -51,10 +51,10 @@ sub _add_real_and_nufact_args {
     my %args = @_;
     my %res;
     for my $key (keys %args) {
-        $res{$key} = $args{key};
+        $res{$key} = $args{$key};
         $res{"${key}_nufact"} = {
             summary => "$args{$key}{summary} (value to be used in nutrition facts table instead the lab test result)",
-            schema => $args{key}{schema},
+            schema => $args{$key}{schema},
         };
         $res{"${key}_nufact_note"} = {
             schema => "str*",
