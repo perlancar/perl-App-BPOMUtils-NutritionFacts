@@ -47,6 +47,22 @@ my @output_formats = (qw/
 /);
 # horizontal_html_table horizontal_text_table formats not supported yet
 
+sub _add_real_and_nufact_args {
+    my %args = @_;
+    my %res;
+    for my $key (keys %args) {
+        $res{$key} = $args{key};
+        $res{"${key}_nufact"} = {
+            summary => "$args{$key}{summary} (value to be used in nutrition facts table instead the lab test result)",
+            schema => $args{key}{schema},
+        };
+        $res{"${key}_nufact_note"} = {
+            schema => "str*",
+        };
+    }
+    %res;
+}
+
 $SPEC{bpom_show_nutrition_facts} = {
     v => 1.1,
     summary => 'Render BPOM-compliant nutrition fact table (ING - informasi nilai gizi) in various formats',
@@ -82,6 +98,7 @@ _
             tags => ['category:output'],
         },
 
+        _add_real_and_nufact_args(
         fat           => {summary => 'Total fat, in g/100g'           , schema => 'ufloat*', req=>1},
         saturated_fat => {summary => 'Saturated fat, in g/100g'       , schema => 'ufloat*', req=>1},
         cholesterol   => {summary => 'Cholesterol, in mg/100g'        , schema => 'ufloat*'},
@@ -110,18 +127,17 @@ _
         mn            => {summary => 'Manganese, in mcg/100g', schema => 'ufloat*'},
         cu            => {summary => 'Copper, in mcg/100g', schema => 'ufloat*'},
         cr            => {summary => 'Chromium, in mcg/100g', schema => 'ufloat*'},
-
-        fe             => {summary => 'Iron, in mg/100g', schema => 'ufloat*'},
-        fe_theoretical => {summary => 'Iron, in mg/100g (theoretical value to be used instead of lab result)', schema  => 'ufloat*'},
-        fe_theoretical_note => {schema => 'str*'},
-
+        fe            => {summary => 'Iron, in mg/100g', schema => 'ufloat*'},
         iodium        => {summary => 'Iodium, in mcg/100g', schema => 'ufloat*'},
         zn            => {summary => 'Zinc, in mg/100g', schema => 'ufloat*'},
         se            => {summary => 'Selenium, in mcg/100g', schema => 'ufloat*'},
         fluorine      => {summary => 'Fluorine, in mg/100g', schema => 'ufloat*'},
+        ),
 
         serving_size  => {summary => 'Serving size, in g'             , schema => 'ufloat*', req=>1},
         package_size  => {summary => 'Packaging size, in g'           , schema => 'ufloat*', req=>1},
+
+        has_claims    => {summary => 'Whether food is registered as having claims', schema=>'bool*'},
     },
 
     examples => [
@@ -741,21 +757,37 @@ sub bpom_show_nutrition_facts {
             };
 
             my $do_vm = sub {
-                my ($name_ind, $val0, $val0_theoretical, $theoritical_note,
-                    $akg, $unit, $name_eng) = @_;
+                my ($sym, $name_ind, $akg, $unit, $name_eng) = @_;
+
+                my $val0 = $args{$sym};
+                my $val0_nufact = $args{"${sym}_nufact"};
+                my $nufact_note = $args{"${sym}_nufact_note"};
+
+                if (defined $val0_nufact) {
+                    if ($args{has_claims}) {
+                        if ($val0 < $val0_nufact) {
+                            die "$name_eng: In food with claims, value in lab test result ($val0) must be greater than or equal to value to be shown in nufacts";
+                        }
+                    } else {
+                        if ($val0 < $val0_nufact * 0.8) {
+                            die "$name_eng: In food without claims, value in lab test result ($val0) must at least be 80% of value to be shown in nufacts";
+                        }
+                    }
+                    $val0 = $val0_nufact;
+                }
 
                 $name_eng //= $name_ind;
                 my $val  = $val0*$args{$size_key}/100;
                 my $pct_dv = $val/$akg *100;
                 my $pct_dv_R = $code_round_vitamin_mineral_pct_dv->($pct_dv, $pct_dv);
                 if ($pct_dv_R < 2) {
-                    warn "$name_eng value is below 2% AKG, skipped showing in nutrition facts\n";
+                    die "$name_eng value is below 2% AKG, can't show in nutrition facts\n";
                     return;
                 }
-                $funcraw->{va_pct_dv_per_srv} = $pct_dv           if !$per_package_ing;
-                $funcraw->{va_pct_dv_per_srv_rounded} = $pct_dv_R if !$per_package_ing;
-                $funcraw->{va_pct_dv_per_pkg} = $pct_dv           if  $per_package_ing;
-                $funcraw->{va_pct_dv_per_pkg_rounded} = $pct_dv_R if  $per_package_ing;
+                $funcraw->{"${sym}_pct_dv_per_srv"} = $pct_dv           if !$per_package_ing;
+                $funcraw->{"${sym}_pct_dv_per_srv_rounded"} = $pct_dv_R if !$per_package_ing;
+                $funcraw->{"${sym}_pct_dv_per_pkg"} = $pct_dv           if  $per_package_ing;
+                $funcraw->{"${sym}_pct_dv_per_pkg_rounded"} = $pct_dv_R if  $per_package_ing;
                 if ($output_format eq 'raw_table') {
                     push @rows_vm, {
                         name_eng => $name_eng,
@@ -773,8 +805,8 @@ sub bpom_show_nutrition_facts {
                 } elsif ($output_format =~ /calculation/) {
                     push @rows_vm, [{colspan=>2, align=>'middle', $attr=>$code_fmttext->("*$name_ind*")}];
                     push @rows_vm, [{align=>'right', text=>"$name_ind per 100 g"},
-                                     {align=>'left', $attr=>"= $args{va} $unit"}];
-                    push @rows_vm, [{align=>'right', text=>"Vitamin A total per ".($per_package_ing ? "kemasan $args{package_size} g" : "takaran saji $args{serving_size} g")},
+                                     {align=>'left', $attr=>"= $val0 $unit"}];
+                    push @rows_vm, [{align=>'right', text=>"$name_ind total per ".($per_package_ing ? "kemasan $args{package_size} g" : "takaran saji $args{serving_size} g")},
                                      {align=>'left', $attr=>"= $val0 $M $args{$size_key} / 100 = $val $unit"}];
                     push @rows_vm, ['', ''];
                     push @rows_vm, [{colspan=>2, align=>'middle', $attr=>$code_fmttext->("*%AKG $name_ind*")}];
@@ -785,84 +817,32 @@ sub bpom_show_nutrition_facts {
                 }
             }; # do_vm
 
-            $do_vm->("Vitamin A", $args{va}, $args{va_theoretical}, $args{va_theoretical_note},
-                     600, "mcg (all-trans-)retinol") if $args{va};
-
-            $do_vm->("Vitamin D", $args{vd}, $args{vd_theoretical}, $args{vd_theoretical_note},
-                     15, "mcg") if $args{vd};
-
-            $do_vm->("Vitamin E", $args{ve}, $args{ve_theoretical}, $args{ve_theoretical_note},
-                     15, "mg alpha-TE (tocopherol-equivalent)") if $args{ve};
-
-            $do_vm->("Vitamin K", $args{vk}, $args{vk_theoretical}, $args{vk_theoretical_note},
-                     60, "mcg") if $args{vk};
-
-            $do_vm->("Vitamin B1", $args{vb1}, $args{vb1_theoretical}, $args{vb1_theoretical_note},
-                     1.4, "mg") if $args{vb1};
-
-            $do_vm->("Vitamin B2", $args{vb2}, $args{vb2_theoretical}, $args{vb2_theoretical_note},
-                     1.6, "mg") if $args{vb2};
-
-            $do_vm->("Vitamin B3", $args{vb3}, $args{vb3_theoretical}, $args{vb3_theoretical_note},
-                     15, "mg") if $args{vb3};
-
-            $do_vm->("Vitamin B5", $args{vb5}, $args{vb5_theoretical}, $args{vb5_theoretical_note},
-                     5, "mg") if $args{vb5};
-
-            $do_vm->("Vitamin B6", $args{vb6}, $args{vb6_theoretical}, $args{vb6_theoretical_note},
-                     1.3, "mg") if $args{vb6};
-
-            $do_vm->("Folat", $args{folate}, $args{folate_theoretical}, $args{folate_theoretical_note},
-                     400, "mcg", "Folate") if $args{folate};
-
-            $do_vm->("Vitamin B12", $args{vb12}, $args{vb12_theoretical}, $args{vb12_theoretical_note},
-                     2.4, "mcg") if $args{vb12};
-
-            $do_vm->("Biotin", $args{biotin}, $args{biotin_theoretical}, $args{biotin_theoretical_note},
-                     30, "mcg") if $args{biotin};
-
-            $do_vm->("Kolin", $args{choline}, $args{choline_theoretical}, $args{choline_theoretical_note},
-                     450, "mg", "Choline") if $args{choline};
-
-            $do_vm->("Vitamin C", $args{vc}, $args{vc_theoretical}, $args{vc_theoretical_note},
-                     90, "mg") if $args{vc};
-
-            $do_vm->("Kalsium", $args{ca}, $args{ca_theoretical}, $args{ca_theoretical_note},
-                     1100, "mg", "Calcium") if $args{ca};
-
-            $do_vm->("Fosfor", $args{phosphorus}, $args{phosphorus_theoretical}, $args{phosphorus_theoretical_note},
-                     700, "mg", "Phosphorus") if $args{phosphorus};
-
-            $do_vm->("Magnesium", $args{mg}, $args{mg_theoretical}, $args{mg_theoretical_note},
-                     350, "mg") if $args{mg};
-
-            $do_vm->("Kalium", $args{potassium}, $args{potassium_theoretical}, $args{potassium_theoretical_note},
-                     4700, "mg", "Potassium") if $args{potassium};
-
-            $do_vm->("Mangan", $args{mn}, $args{mn_theoretical}, $args{mn_theoretical_note},
-                     2000, "mcg", "Manganese") if $args{mn};
-
-            $do_vm->("Tembaga", $args{cu}, $args{cu_theoretical}, $args{cu_theoretical_note},
-                     800, "mcg", "Copper") if $args{cu};
-
-            $do_vm->("Kromium", $args{cr}, $args{cr_theoretical}, $args{cr_theoretical_note},
-                     26, "mcg", "Chromium") if $args{cr};
-
-            $do_vm->("Besi", $args{fe}, $args{fe_theoretical}, $args{fe_theoretical_note},
-                     22, "mg", "Iron") if $args{fe};
-
-            $do_vm->("Iodium", $args{iodium}, $args{iodium_theoretical}, $args{iodium_theoretical_note},
-                     90, "mcg", "Iodium") if $args{iodium};
-
-            $do_vm->("Seng", $args{zn}, $args{zn_theoretical}, $args{zn_theoretical_note},
-                     13, "mg", "Zinc") if $args{zn};
-
-            $do_vm->("Selenium", $args{se}, $args{se_theoretical}, $args{se_theoretical_note},
-                     30, "mcg") if $args{se};
-
-            $do_vm->("Fluor", $args{fluorine}, $args{fluorine_theoretical}, $args{fluorine_theoretical_note},
-                     2.5, "mg", "Fluorine") if $args{fluorine};
-
+            $do_vm->("va", "Vitamin A", 600, "mcg (all-trans-)retinol") if $args{va};
+            $do_vm->("vd", "Vitamin D", 15, "mcg") if $args{vd};
+            $do_vm->("ve", "Vitamin E", 15, "mg alpha-TE (tocopherol-equivalent)") if $args{ve};
+            $do_vm->("vk", "Vitamin K", 60, "mcg") if $args{vk};
+            $do_vm->("vb1", "Vitamin B1", 1.4, "mg") if $args{vb1};
+            $do_vm->("vb2", "Vitamin B2", 1.6, "mg") if $args{vb2};
+            $do_vm->("vb3", "Vitamin B3", 15, "mg") if $args{vb3};
+            $do_vm->("vb5", "Vitamin B5", 5, "mg") if $args{vb5};
+            $do_vm->("vb6", "Vitamin B6", 1.3, "mg") if $args{vb6};
+            $do_vm->("folate", "Folat", 400, "mcg", "Folate") if $args{folate};
+            $do_vm->("vb12", "Vitamin B12", 2.4, "mcg") if $args{vb12};
+            $do_vm->("biotin", "Biotin", 30, "mcg") if $args{biotin};
+            $do_vm->("choline", "Kolin", 450, "mg", "Choline") if $args{choline};
+            $do_vm->("vc", "Vitamin C", 90, "mg") if $args{vc};
+            $do_vm->("ca", "Kalsium", 1100, "mg", "Calcium") if $args{ca};
+            $do_vm->("phosphorus", "Fosfor", 700, "mg", "Phosphorus") if $args{phosphorus};
+            $do_vm->("mg", "Magnesium", 350, "mg") if $args{mg};
+            $do_vm->("potassium", "Kalium", 4700, "mg", "Potassium") if $args{potassium};
+            $do_vm->("mn", "Mangan", 2000, "mcg", "Manganese") if $args{mn};
+            $do_vm->("cu", "Tembaga", 800, "mcg", "Copper") if $args{cu};
+            $do_vm->("cr", "Kromium", 26, "mcg", "Chromium") if $args{cr};
+            $do_vm->("fe", "Besi", 22, "mg", "Iron") if $args{fe};
+            $do_vm->("iodium", "Iodium", 90, "mcg", "Iodium") if $args{iodium};
+            $do_vm->("zn", "Seng", 13, "mg", "Zinc") if $args{zn};
+            $do_vm->("se", "Selenium", 30, "mcg") if $args{se};
+            $do_vm->("fluorine", "Fluor", 2.5, "mg", "Fluorine") if $args{fluorine};
         } # VITAMIN_MINERAL
 
         my @rows_nn;
