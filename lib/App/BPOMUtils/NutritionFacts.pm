@@ -102,6 +102,7 @@ _
         fat           => {summary => 'Total fat, in g/100g'           , schema => 'ufloat*', req=>1},
         saturated_fat => {summary => 'Saturated fat, in g/100g'       , schema => 'ufloat*', req=>1},
         cholesterol   => {summary => 'Cholesterol, in mg/100g'        , schema => 'ufloat*'},
+        trans_fat     => {summary => 'Trans fat, in g/100g'           , schema => 'ufloat*'},
         protein       => {summary => 'Protein, in g/100g'             , schema => 'ufloat*', req=>1},
         carbohydrate  => {summary => 'Total carbohydrate, in g/100g'  , schema => 'ufloat*', req=>1},
         sugar         => {summary => 'Total sugar, in g/100g'         , schema => 'ufloat*', req=>1},
@@ -445,6 +446,49 @@ sub bpom_show_nutrition_facts {
                          {align=>'left', $attr=>$code_fmttext->("= *$pct_dv_R*")}];
         }
 
+      TRANS_FAT: {
+            my $val0 = $args{trans_fat};
+            my $val  = $val0*$args{$size_key}/100;
+            my $valr = $code_round_fat->($val);
+            my $pct_dv = $val/20*100;
+            my $pct_dv_R = $code_round_fat_pct_dv->($pct_dv, $valr);
+            $funcraw->{trans_fat_per_srv} = $val          if !$per_package_ing;
+            $funcraw->{trans_fat_per_srv_rounded} = $valr if !$per_package_ing;
+            $funcraw->{trans_fat_per_pkg} = $val          if  $per_package_ing;
+            $funcraw->{trans_fat_per_pkg_rounded} = $valr if  $per_package_ing;
+            if ($output_format eq 'raw_table') {
+                push @rows, {
+                    name_eng => 'Trans fat',
+                    name_ind => 'Lemak trans',
+                    val_per_100g  => $val0,
+                    (val_per_srv   => $val,
+                     val_per_srv_R => $valr) x ($per_package_ing ? 0:1),
+                    (val_per_pkg   => $val,
+                     val_per_pkg_R => $valr) x $per_package_ing,
+                    pct_dv   => $pct_dv,
+                    pct_dv_R => $pct_dv_R,
+                };
+            } elsif ($output_format =~ /vertical/) {
+                push @rows, [{text=>''}, {colspan=>1, $attr=>$code_fmttext->("Lemak /trans/")}, {align=>'right', $attr=>$code_fmttext->("$valr g")}, {align=>'right', $attr=>"$pct_dv_R %"}, ''];
+            } elsif ($output_format =~ /linear/) {
+                push @rows, $code_fmttext->("Lemak /trans/ $valr g ($pct_dv_R% AKG), ");
+            } elsif ($output_format =~ /calculation/) {
+                push @rows, [{colspan=>2, align=>'middle', $attr=>$code_fmttext->('*Lemak trans*')}];
+                push @rows, [{align=>'right', text=>'Lemak trans per 100 g'},
+                             {align=>'left', $attr=>"= $args{trans_fat} g"}];
+                push @rows, [{align=>'right', text=>"Lemak trans per ".($per_package_ing ? "kemasan $args{package_size} g" : "takaran saji $args{serving_size} g")},
+                             {align=>'left', $attr=>"= $val0 $M $args{$size_key} / 100 = $val g"}];
+                push @rows, [{align=>'right', text=>"(dibulatkan: <0.5 -> 0, <=5 -> 0.5 g terdekat, >=5 -> 1 g terdekat)"},
+                             {align=>'left', $attr=>$code_fmttext->("= *$valr* g")}];
+                push @rows, ['', ''];
+                push @rows, [{colspan=>2, align=>'middle', $attr=>$code_fmttext->('*%AKG lemak trans*')}];
+                push @rows, [{align=>'right', text=>"\%AKG"},
+                             {align=>'left', $attr=>"= $val / 67 $M 100 = $pct_dv"}];
+                push @rows, [{align=>'right', text=>"(dibulatkan ke % terdekat)"},
+                             {align=>'left', $attr=>$code_fmttext->("= *$pct_dv_R*")}];
+            }
+        } # TRANS_FAT
+
       SATURATED_FAT: {
             my $val0 = $args{saturated_fat};
             my $val  = $val0*$args{$size_key}/100;
@@ -468,7 +512,7 @@ sub bpom_show_nutrition_facts {
                     pct_dv_R => $pct_dv_R,
                 };
             } elsif ($output_format =~ /vertical/) {
-                push @rows, [{colspan=>2, $attr=>$code_fmttext->("*Lemak jenuh*")}, {align=>'right', $attr=>$code_fmttext->("*$valr g*")}, {align=>'right', $attr=>"$pct_dv_R %"}, ''];
+                push @rows, [{text=>''}, {colspan=>1, $attr=>$code_fmttext->("*Lemak jenuh*")}, {align=>'right', $attr=>$code_fmttext->("*$valr g*")}, {align=>'right', $attr=>"$pct_dv_R %"}, ''];
             } elsif ($output_format =~ /linear/) {
                 push @rows, $code_fmttext->("*Lemak jenuh $valr g ($pct_dv_R% AKG)*, ");
             } elsif ($output_format =~ /calculation/) {
@@ -486,9 +530,9 @@ sub bpom_show_nutrition_facts {
                 push @rows, [{align=>'right', text=>"(dibulatkan ke % terdekat)"},
                              {align=>'left', $attr=>$code_fmttext->("= *$pct_dv_R*")}];
             }
-    } # FAT
+        } # SATURATED_FAT
 
-  CHOLESTEROL: {
+      CHOLESTEROL: {
         my $code_round_cholesterol = sub {
             my $val = shift;
             if ($val <  2)    { 0 }
@@ -832,6 +876,7 @@ sub bpom_show_nutrition_facts {
             $do_vm->("choline", "Kolin", 450, "mg", "Choline") if $args{choline};
             $do_vm->("vc", "Vitamin C", 90, "mg") if $args{vc};
             $do_vm->("ca", "Kalsium", 1100, "mg", "Calcium") if $args{ca};
+            $do_vm->("k", "Kalium", 4700, "mg", "Potassium") if $args{k};
             $do_vm->("phosphorus", "Fosfor", 700, "mg", "Phosphorus") if $args{phosphorus};
             $do_vm->("mg", "Magnesium", 350, "mg") if $args{mg};
             $do_vm->("potassium", "Kalium", 4700, "mg", "Potassium") if $args{potassium};
